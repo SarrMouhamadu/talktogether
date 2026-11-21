@@ -986,6 +986,57 @@ public struct AdminDashboardView: View {
                 RoundedRectangle(cornerRadius: AppTheme.radiusCard, style: .continuous)
                     .stroke(AppTheme.separator.opacity(0.8), lineWidth: 1)
             )
+            
+            // Apple CloudKit Multi-Device Sync Card
+            VStack(alignment: .leading, spacing: AppTheme.space12) {
+                HStack {
+                    Label("Apple CloudKit Multi-Device Sync", systemImage: "icloud.fill")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(AppTheme.primaryText)
+                    Spacer()
+                    Button(action: {
+                        Task {
+                            await debateManager.syncWithCloudKit()
+                        }
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.triangle.2.circlepath")
+                                .font(.system(size: 11))
+                            Text("Sync Now")
+                                .font(.system(size: 11, weight: .semibold))
+                        }
+                        .foregroundColor(AppTheme.primaryBlue)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(AppTheme.primaryBlue.opacity(0.12))
+                        .clipShape(Capsule())
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                }
+                
+                VStack(spacing: 8) {
+                    telemetryRow(
+                        title: "iCloud Account Status",
+                        value: debateManager.cloudKitManager.accountStatusDescription,
+                        color: debateManager.cloudKitManager.isAvailable ? AppTheme.successGreen : AppTheme.warningOrange
+                    )
+                    telemetryRow(
+                        title: "Public Database Scope",
+                        value: debateManager.cloudKitManager.isAvailable ? "Online (Global Shared)" : "Offline Cache Active",
+                        color: debateManager.cloudKitManager.isAvailable ? AppTheme.primaryBlue : AppTheme.secondaryText
+                    )
+                    if let lastSync = debateManager.cloudKitManager.lastSyncDate {
+                        telemetryRow(title: "Last Cloud Sync", value: lastSync.formatted(date: .omitted, time: .standard))
+                    }
+                }
+            }
+            .padding(AppTheme.space16)
+            .background(AppTheme.surface)
+            .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusCard, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: AppTheme.radiusCard, style: .continuous)
+                    .stroke(AppTheme.separator.opacity(0.8), lineWidth: 1)
+            )
         }
     }
     

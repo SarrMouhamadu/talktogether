@@ -19,6 +19,7 @@ public final class DebateManager: @unchecked Sendable {
     public var dailyPrompt: String = "Today's 30s Challenge: What is one habit that changed your life for the better?"
     
     public var audioService: AudioService = AudioService.shared
+    public var cloudKitManager: CloudKitManager = CloudKitManager.shared
     
     private var sessionTimer: Timer?
     private var speakingTurnTimer: Timer?
@@ -86,6 +87,11 @@ public final class DebateManager: @unchecked Sendable {
            let saved = try? JSONDecoder().decode([ContentReport].self, from: data) {
             self.reports = saved
         }
+        
+        // 5. Asynchronous CloudKit Multi-Device Sync
+        Task {
+            await syncWithCloudKit()
+        }
     }
     
     public func persistUsers() {
@@ -109,6 +115,54 @@ public final class DebateManager: @unchecked Sendable {
     public func persistReports() {
         if let data = try? JSONEncoder().encode(reports) {
             UserDefaults.standard.set(data, forKey: reportsDefaultsKey)
+        }
+    }
+    
+    // MARK: - CloudKit Multi-Device Synchronization
+    public func syncWithCloudKit() async {
+        guard cloudKitManager.isAvailable else { return }
+        
+        do {
+            // 1. Fetch remote topics created by other users worldwide
+            let remoteTopics = try await cloudKitManager.fetchPublicTopics()
+            if !remoteTopics.isEmpty {
+                for remote in remoteTopics {
+                    if let idx = topicsQueue.firstIndex(where: { $0.id == remote.id }) {
+                        topicsQueue[idx] = remote
+                    } else {
+                        topicsQueue.append(remote)
+                    }
+                }
+                persistTopics()
+            }
+            
+            // 2. Fetch remote posts created by other users worldwide
+            let remotePosts = try await cloudKitManager.fetchPublicFeedPosts()
+            if !remotePosts.isEmpty {
+                for remote in remotePosts {
+                    if let idx = feedPosts.firstIndex(where: { $0.id == remote.id }) {
+                        feedPosts[idx] = remote
+                    } else {
+                        feedPosts.insert(remote, at: 0)
+                    }
+                }
+                persistPosts()
+            }
+            
+            // 3. Fetch remote community users
+            let remoteUsers = try await cloudKitManager.fetchCommunityUsers()
+            if !remoteUsers.isEmpty {
+                for remote in remoteUsers {
+                    if let idx = allUsers.firstIndex(where: { $0.id == remote.id }) {
+                        allUsers[idx] = remote
+                    } else {
+                        allUsers.append(remote)
+                    }
+                }
+                persistUsers()
+            }
+        } catch {
+            print("CloudKit sync notice: \(error.localizedDescription)")
         }
     }
     
@@ -241,6 +295,10 @@ public final class DebateManager: @unchecked Sendable {
         newTopic.queuePosition = queueCount + 2 // after live and current queue
         topicsQueue.append(newTopic)
         persistTopics()
+        
+        Task {
+            try? await cloudKitManager.saveTopic(newTopic)
+        }
     }
     
     // MARK: - Topic CRUD (Update & Delete)
@@ -252,6 +310,10 @@ public final class DebateManager: @unchecked Sendable {
             currentSession?.topic = updated
         }
         persistTopics()
+        
+        Task {
+            try? await cloudKitManager.saveTopic(updated)
+        }
     }
     
     public func deleteTopic(id: UUID) {
@@ -261,6 +323,10 @@ public final class DebateManager: @unchecked Sendable {
         }
         renumberQueue()
         persistTopics()
+        
+        Task {
+            try? await cloudKitManager.deleteTopic(id: id)
+        }
     }
     
     private func renumberQueue() {
@@ -282,6 +348,10 @@ public final class DebateManager: @unchecked Sendable {
         }
         feedPosts.insert(newPost, at: 0)
         persistPosts()
+        
+        Task {
+            try? await cloudKitManager.saveFeedPost(newPost)
+        }
         
         if hasMedia {
             simulateWhatsAppUpload(for: newPost.id)
@@ -310,6 +380,9 @@ public final class DebateManager: @unchecked Sendable {
         if let index = feedPosts.firstIndex(where: { $0.id == updated.id }) {
             feedPosts[index] = updated
             persistPosts()
+            Task {
+                try? await cloudKitManager.saveFeedPost(updated)
+            }
         }
     }
     
@@ -319,6 +392,10 @@ public final class DebateManager: @unchecked Sendable {
         }
         feedPosts.removeAll { $0.id == id }
         persistPosts()
+        
+        Task {
+            try? await cloudKitManager.deleteFeedPost(id: id)
+        }
     }
     
     public func deleteComment(postID: UUID, commentID: UUID) {

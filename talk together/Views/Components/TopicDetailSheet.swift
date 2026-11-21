@@ -60,6 +60,34 @@ public struct TopicDetailSheet: View {
                         .lineSpacing(3)
                 }
                 
+                // Scheduled Date & Time Card (if set)
+                if let timeStr = topic.formattedScheduledTime {
+                    HStack(spacing: AppTheme.space12) {
+                        Image(systemName: "calendar.badge.clock")
+                            .font(.system(size: 18))
+                            .foregroundColor(AppTheme.primaryBlue)
+                            .frame(width: 28)
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Scheduled Start Time")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(AppTheme.primaryText)
+                            Text(timeStr)
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(AppTheme.primaryBlue)
+                        }
+                        
+                        Spacer()
+                    }
+                    .padding(AppTheme.space12)
+                    .background(AppTheme.surface)
+                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusCard, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: AppTheme.radiusCard, style: .continuous)
+                            .stroke(AppTheme.inputBorder, lineWidth: 1.2)
+                    )
+                }
+                
                 Divider()
                     .background(AppTheme.separator)
                 

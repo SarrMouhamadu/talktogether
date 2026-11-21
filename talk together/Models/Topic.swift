@@ -36,6 +36,26 @@ public struct Topic: Identifiable, Codable, Sendable, Hashable {
         self.createdAt = createdAt
         self.scheduledStartTime = scheduledStartTime
     }
+    
+    public var formattedScheduledTime: String? {
+        guard let scheduledStartTime else { return nil }
+        let formatter = DateFormatter()
+        if Calendar.current.isDateInToday(scheduledStartTime) {
+            formatter.dateFormat = "'Today at' HH:mm"
+        } else if Calendar.current.isDateInTomorrow(scheduledStartTime) {
+            formatter.dateFormat = "'Tomorrow at' HH:mm"
+        } else {
+            formatter.dateFormat = "MMM d, HH:mm"
+        }
+        return formatter.string(from: scheduledStartTime)
+    }
+    
+    public var shortScheduledTime: String? {
+        guard let scheduledStartTime else { return nil }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        return formatter.string(from: scheduledStartTime)
+    }
 }
 
 // MARK: - Sample Previews

@@ -38,6 +38,20 @@ public struct TopicCardView: View {
                     .foregroundColor(AppTheme.secondaryText)
                 
                 Spacer()
+                
+                if let timeStr = topic.formattedScheduledTime {
+                    HStack(spacing: 4) {
+                        Image(systemName: "calendar.badge.clock")
+                            .font(.system(size: 11))
+                        Text(timeStr)
+                            .font(.system(size: 11, weight: .semibold))
+                    }
+                    .foregroundColor(AppTheme.primaryBlue)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(AppTheme.primaryBlue.opacity(0.10))
+                    .clipShape(Capsule())
+                }
             }
             
             // Debate Question (Main Focal Point)
@@ -117,10 +131,24 @@ public struct QueueTopicRow: View {
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
                 
-                Text("\(topic.creator.fullName) · \(topic.category.rawValue)")
-                    .font(.system(size: 13))
-                    .foregroundColor(AppTheme.secondaryText)
-                    .lineLimit(1)
+                HStack(spacing: 6) {
+                    Text("\(topic.creator.fullName) · \(topic.category.rawValue)")
+                        .font(.system(size: 13))
+                        .foregroundColor(AppTheme.secondaryText)
+                        .lineLimit(1)
+                    
+                    if let timeStr = topic.shortScheduledTime {
+                        Text("·")
+                            .foregroundColor(AppTheme.secondaryText)
+                        HStack(spacing: 3) {
+                            Image(systemName: "clock")
+                                .font(.system(size: 10))
+                            Text(timeStr)
+                                .font(.system(size: 11, weight: .semibold).monospacedDigit())
+                        }
+                        .foregroundColor(AppTheme.primaryBlue)
+                    }
+                }
             }
             
             Spacer(minLength: AppTheme.space8)

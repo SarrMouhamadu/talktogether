@@ -481,7 +481,7 @@ public struct AdminDashboardView: View {
                                     .font(.system(size: 14, weight: .semibold))
                                     .foregroundColor(AppTheme.primaryText)
                                     .lineLimit(1)
-                                Text("@\(topic.creator.username) · \(topic.category.rawValue)")
+                                Text("@\(topic.creator.username) · \(topic.category.rawValue)\(topic.shortScheduledTime != nil ? " · \(topic.shortScheduledTime!)" : "")")
                                     .font(.system(size: 12))
                                     .foregroundColor(AppTheme.secondaryText)
                             }

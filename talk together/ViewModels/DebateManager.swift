@@ -23,6 +23,9 @@ public final class DebateManager: @unchecked Sendable {
     private var sessionTimer: Timer?
     private var speakingTurnTimer: Timer?
     private let usersDefaultsKey = "waxup_persisted_users"
+    private let topicsDefaultsKey = "waxup_persisted_topics"
+    private let postsDefaultsKey = "waxup_persisted_posts"
+    private let reportsDefaultsKey = "waxup_persisted_reports"
     
     public init(currentUser: User? = nil) {
         let user = currentUser ?? User(
@@ -38,7 +41,7 @@ public final class DebateManager: @unchecked Sendable {
         )
         self.currentUser = user
         
-        // Load persisted users or seed with registered community members
+        // 1. Load persisted users or seed with registered community members
         if let data = UserDefaults.standard.data(forKey: usersDefaultsKey),
            let saved = try? JSONDecoder().decode([User].self, from: data), !saved.isEmpty {
             var loaded = saved
@@ -59,11 +62,53 @@ public final class DebateManager: @unchecked Sendable {
             self.allUsers = seeded
             self.persistUsers()
         }
+        
+        // 2. Load persisted debate topics or seed with community queue
+        if let data = UserDefaults.standard.data(forKey: topicsDefaultsKey),
+           let saved = try? JSONDecoder().decode([Topic].self, from: data), !saved.isEmpty {
+            self.topicsQueue = saved
+        } else {
+            self.topicsQueue = Topic.sampleTopics
+            self.persistTopics()
+        }
+        
+        // 3. Load persisted feed posts or seed with community posts
+        if let data = UserDefaults.standard.data(forKey: postsDefaultsKey),
+           let saved = try? JSONDecoder().decode([FeedPost].self, from: data), !saved.isEmpty {
+            self.feedPosts = saved
+        } else {
+            self.feedPosts = FeedPost.samplePosts
+            self.persistPosts()
+        }
+        
+        // 4. Load persisted safety reports
+        if let data = UserDefaults.standard.data(forKey: reportsDefaultsKey),
+           let saved = try? JSONDecoder().decode([ContentReport].self, from: data) {
+            self.reports = saved
+        }
     }
     
     public func persistUsers() {
         if let data = try? JSONEncoder().encode(allUsers) {
             UserDefaults.standard.set(data, forKey: usersDefaultsKey)
+        }
+    }
+    
+    public func persistTopics() {
+        if let data = try? JSONEncoder().encode(topicsQueue) {
+            UserDefaults.standard.set(data, forKey: topicsDefaultsKey)
+        }
+    }
+    
+    public func persistPosts() {
+        if let data = try? JSONEncoder().encode(feedPosts) {
+            UserDefaults.standard.set(data, forKey: postsDefaultsKey)
+        }
+    }
+    
+    public func persistReports() {
+        if let data = try? JSONEncoder().encode(reports) {
+            UserDefaults.standard.set(data, forKey: reportsDefaultsKey)
         }
     }
     
@@ -187,6 +232,7 @@ public final class DebateManager: @unchecked Sendable {
                 pos += 1
             }
         }
+        persistTopics()
     }
     
     public func addTopicToQueue(_ topic: Topic) {
@@ -194,6 +240,7 @@ public final class DebateManager: @unchecked Sendable {
         let queueCount = topicsQueue.filter { $0.status == .inQueue }.count
         newTopic.queuePosition = queueCount + 2 // after live and current queue
         topicsQueue.append(newTopic)
+        persistTopics()
     }
     
     // MARK: - Topic CRUD (Update & Delete)
@@ -204,6 +251,7 @@ public final class DebateManager: @unchecked Sendable {
         if currentSession?.topic.id == updated.id {
             currentSession?.topic = updated
         }
+        persistTopics()
     }
     
     public func deleteTopic(id: UUID) {
@@ -212,6 +260,7 @@ public final class DebateManager: @unchecked Sendable {
             leaveSession()
         }
         renumberQueue()
+        persistTopics()
     }
     
     private func renumberQueue() {
@@ -232,6 +281,7 @@ public final class DebateManager: @unchecked Sendable {
             newPost.uploadProgress = 0.05
         }
         feedPosts.insert(newPost, at: 0)
+        persistPosts()
         
         if hasMedia {
             simulateWhatsAppUpload(for: newPost.id)
@@ -251,6 +301,7 @@ public final class DebateManager: @unchecked Sendable {
             try? await Task.sleep(nanoseconds: 120_000_000)
             if let index = feedPosts.firstIndex(where: { $0.id == postID }) {
                 feedPosts[index].uploadProgress = nil
+                self.persistPosts()
             }
         }
     }
@@ -258,6 +309,7 @@ public final class DebateManager: @unchecked Sendable {
     public func updatePost(_ updated: FeedPost) {
         if let index = feedPosts.firstIndex(where: { $0.id == updated.id }) {
             feedPosts[index] = updated
+            persistPosts()
         }
     }
     
@@ -266,11 +318,13 @@ public final class DebateManager: @unchecked Sendable {
             try? FileManager.default.removeItem(at: audioURL)
         }
         feedPosts.removeAll { $0.id == id }
+        persistPosts()
     }
     
     public func deleteComment(postID: UUID, commentID: UUID) {
         if let index = feedPosts.firstIndex(where: { $0.id == postID }) {
             feedPosts[index].comments.removeAll { $0.id == commentID }
+            persistPosts()
         }
     }
     
@@ -468,6 +522,8 @@ public final class DebateManager: @unchecked Sendable {
         // Remove user's queued/live topics and renumber FIFO
         topicsQueue.removeAll { $0.creator.id == id }
         renumberQueue()
+        persistTopics()
+        persistPosts()
         
         // Remove user from platform
         allUsers.removeAll { $0.id == id }
@@ -477,11 +533,13 @@ public final class DebateManager: @unchecked Sendable {
         for i in 0..<reports.count where reports[i].reportedAuthor.id == id {
             reports[i].isResolved = true
         }
+        persistReports()
     }
     
     public func resolveReport(id: UUID) {
         if let index = reports.firstIndex(where: { $0.id == id }) {
             reports[index].isResolved = true
+            persistReports()
         }
     }
     

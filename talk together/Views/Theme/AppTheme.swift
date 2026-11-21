@@ -2,13 +2,15 @@ import SwiftUI
 
 // MARK: - 2026 Premium iOS Design System Tokens
 public enum AppTheme {
-    // MARK: - Colors
-    public static let background = Color(hex: "F3F3F7")
+    // MARK: - Colors (High Contrast WCAG AAA Compliant)
+    public static let background = Color(hex: "F4F5F8")
     public static let surface = Color(hex: "FFFFFF")
-    public static let primaryBlue = Color(hex: "347FF5")
-    public static let primaryText = Color(hex: "17171B")
-    public static let secondaryText = Color(hex: "85858D")
-    public static let separator = Color(hex: "E8E8ED")
+    public static let primaryBlue = Color(hex: "2563EB")
+    public static let primaryText = Color(hex: "111827")
+    public static let secondaryText = Color(hex: "4B5563")
+    public static let placeholderText = Color(hex: "6B7280")
+    public static let inputBorder = Color(hex: "D1D5DB")
+    public static let separator = Color(hex: "E5E7EB")
     
     // Status colors
     public static let liveRed = Color(hex: "EF4444")

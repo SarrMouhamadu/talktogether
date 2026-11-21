@@ -12,6 +12,7 @@ public struct SignUpView: View {
     @State private var level: EnglishLevel = .intermediate
     @State private var agreesToRules: Bool = true
     @State private var isShowingRules: Bool = false
+    @State private var isPasswordVisible: Bool = false
     
     public init(authManager: AuthManager) {
         self.authManager = authManager
@@ -21,9 +22,10 @@ public struct SignUpView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: AppTheme.space20) {
-                    VStack(alignment: .leading, spacing: AppTheme.space4) {
+                    // Header
+                    VStack(alignment: .leading, spacing: AppTheme.space6) {
                         Text("Create Account")
-                            .font(.system(size: 24, weight: .bold))
+                            .font(.system(size: 26, weight: .bold))
                             .foregroundColor(AppTheme.primaryText)
                         
                         Text("Join the English speaking and debate community.")
@@ -32,37 +34,99 @@ public struct SignUpView: View {
                     }
                     .padding(.top, AppTheme.space8)
                     
-                    // Form Fields
-                    VStack(spacing: AppTheme.space12) {
-                        inputField(placeholder: "Full Name", text: $fullName)
-                            .textContentType(.name)
+                    // Form Fields with Visible Labels & High Contrast
+                    VStack(spacing: AppTheme.space16) {
+                        // 1. Full Name
+                        formField(
+                            label: "Full Name",
+                            icon: "person.fill",
+                            placeholder: "e.g. Mouhamadou Sarr",
+                            text: $fullName
+                        )
+                        .textContentType(.name)
                         
-                        inputField(placeholder: "Username (e.g. mouha_sarr)", text: $username)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
+                        // 2. Username
+                        formField(
+                            label: "Username",
+                            icon: "at",
+                            placeholder: "e.g. mouha_sarr",
+                            text: $username
+                        )
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
                         
-                        inputField(placeholder: "Country", text: $country)
+                        // 3. Country
+                        formField(
+                            label: "Country",
+                            icon: "globe.americas.fill",
+                            placeholder: "e.g. Senegal",
+                            text: $country
+                        )
                         
-                        inputField(placeholder: "Email address", text: $email)
-                            .textContentType(.emailAddress)
-                            .keyboardType(.emailAddress)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
+                        // 4. Email
+                        formField(
+                            label: "Email Address",
+                            icon: "envelope.fill",
+                            placeholder: "name@example.com",
+                            text: $email
+                        )
+                        .textContentType(.emailAddress)
+                        .keyboardType(.emailAddress)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
                         
-                        SecureField("Password (min 6 characters)", text: $password)
-                            .font(.system(size: 15))
-                            .textContentType(.newPassword)
+                        // 5. Password with Visibility Toggle
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Password")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(AppTheme.primaryText)
+                            
+                            HStack(spacing: AppTheme.space12) {
+                                Image(systemName: "lock.fill")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(AppTheme.primaryBlue)
+                                    .frame(width: 20)
+                                
+                                if isPasswordVisible {
+                                    TextField(
+                                        "",
+                                        text: $password,
+                                        prompt: Text("Min 6 characters").foregroundColor(AppTheme.placeholderText)
+                                    )
+                                    .font(.system(size: 15))
+                                    .foregroundColor(AppTheme.primaryText)
+                                    .tint(AppTheme.primaryBlue)
+                                } else {
+                                    SecureField(
+                                        "",
+                                        text: $password,
+                                        prompt: Text("Min 6 characters").foregroundColor(AppTheme.placeholderText)
+                                    )
+                                    .font(.system(size: 15))
+                                    .foregroundColor(AppTheme.primaryText)
+                                    .tint(AppTheme.primaryBlue)
+                                    .textContentType(.newPassword)
+                                }
+                                
+                                Button(action: { isPasswordVisible.toggle() }) {
+                                    Image(systemName: isPasswordVisible ? "eye.slash.fill" : "eye.fill")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(AppTheme.secondaryText)
+                                }
+                                .buttonStyle(PlainButtonStyle())
+                            }
                             .padding(AppTheme.space16)
                             .background(AppTheme.surface)
                             .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusInput, style: .continuous))
                             .overlay(
                                 RoundedRectangle(cornerRadius: AppTheme.radiusInput, style: .continuous)
-                                    .stroke(AppTheme.separator, lineWidth: 1)
+                                    .stroke(AppTheme.inputBorder, lineWidth: 1.2)
                             )
+                        }
                     }
                     
-                    // English Level Picker
-                    VStack(alignment: .leading, spacing: AppTheme.space8) {
+                    // 6. English Level Picker
+                    VStack(alignment: .leading, spacing: 6) {
                         Text("English Proficiency Level")
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundColor(AppTheme.primaryText)
@@ -74,13 +138,20 @@ public struct SignUpView: View {
                                 }
                             }
                         } label: {
-                            HStack {
+                            HStack(spacing: AppTheme.space12) {
+                                Image(systemName: "graduationcap.fill")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(AppTheme.primaryBlue)
+                                    .frame(width: 20)
+                                
                                 Text(level.rawValue)
-                                    .font(.system(size: 15))
+                                    .font(.system(size: 15, weight: .medium))
                                     .foregroundColor(AppTheme.primaryText)
+                                
                                 Spacer()
+                                
                                 Image(systemName: "chevron.up.chevron.down")
-                                    .font(.system(size: 12))
+                                    .font(.system(size: 12, weight: .semibold))
                                     .foregroundColor(AppTheme.secondaryText)
                             }
                             .padding(AppTheme.space16)
@@ -88,29 +159,35 @@ public struct SignUpView: View {
                             .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusInput, style: .continuous))
                             .overlay(
                                 RoundedRectangle(cornerRadius: AppTheme.radiusInput, style: .continuous)
-                                    .stroke(AppTheme.separator, lineWidth: 1)
+                                    .stroke(AppTheme.inputBorder, lineWidth: 1.2)
                             )
                         }
                     }
                     
-                    // Agreement
+                    // 7. Community Rules Agreement
                     VStack(alignment: .leading, spacing: AppTheme.space8) {
                         Toggle(isOn: $agreesToRules) {
-                            VStack(alignment: .leading, spacing: 2) {
+                            VStack(alignment: .leading, spacing: 3) {
                                 Text("I agree to the Community Rules")
-                                    .font(.system(size: 14, weight: .medium))
+                                    .font(.system(size: 14, weight: .semibold))
                                     .foregroundColor(AppTheme.primaryText)
                                 Text("No nudity, violence, hate speech, or harassment. English only.")
                                     .font(.system(size: 12))
                                     .foregroundColor(AppTheme.secondaryText)
+                                    .lineLimit(2)
                             }
                         }
                         .tint(AppTheme.primaryBlue)
                         
                         Button(action: { isShowingRules = true }) {
-                            Text("Read full Community & Safety Rules")
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundColor(AppTheme.primaryBlue)
+                            HStack(spacing: 4) {
+                                Image(systemName: "doc.text.fill")
+                                    .font(.system(size: 11))
+                                Text("Read full Community & Safety Rules")
+                                    .font(.system(size: 12, weight: .semibold))
+                            }
+                            .foregroundColor(AppTheme.primaryBlue)
+                            .padding(.top, 4)
                         }
                         .buttonStyle(PlainButtonStyle())
                     }
@@ -119,7 +196,7 @@ public struct SignUpView: View {
                     .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusInput, style: .continuous))
                     .overlay(
                         RoundedRectangle(cornerRadius: AppTheme.radiusInput, style: .continuous)
-                            .stroke(AppTheme.separator, lineWidth: 1)
+                            .stroke(AppTheme.inputBorder, lineWidth: 1.2)
                     )
                     .sheet(isPresented: $isShowingRules) {
                         NavigationStack {
@@ -128,18 +205,24 @@ public struct SignUpView: View {
                                     ToolbarItem(placement: .cancellationAction) {
                                         Button("Close") { isShowingRules = false }
                                             .foregroundColor(AppTheme.primaryBlue)
+                                            .font(.system(size: 15, weight: .semibold))
                                     }
                                 }
                         }
                     }
                     
                     if let error = authManager.errorMessage {
-                        Text(error)
-                            .foregroundColor(AppTheme.liveRed)
-                            .font(.system(size: 13))
+                        HStack(spacing: 6) {
+                            Image(systemName: "exclamationmark.circle.fill")
+                                .font(.system(size: 13))
+                            Text(error)
+                                .font(.system(size: 13, weight: .medium))
+                        }
+                        .foregroundColor(AppTheme.liveRed)
+                        .padding(.horizontal, 4)
                     }
                     
-                    // Submit CTA
+                    // Submit CTA Button
                     Button(action: handleSignUp) {
                         HStack {
                             Spacer()
@@ -153,7 +236,7 @@ public struct SignUpView: View {
                             }
                             Spacer()
                         }
-                        .frame(height: 50)
+                        .frame(height: 52)
                         .background(isValid ? AppTheme.primaryBlue : AppTheme.primaryBlue.opacity(0.35))
                         .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusButton, style: .continuous))
                     }
@@ -170,23 +253,42 @@ public struct SignUpView: View {
                     Button("Cancel") {
                         dismiss()
                     }
-                    .font(.system(size: 15))
+                    .font(.system(size: 15, weight: .medium))
                     .foregroundColor(AppTheme.primaryBlue)
                 }
             }
         }
     }
     
-    private func inputField(placeholder: String, text: Binding<String>) -> some View {
-        TextField(placeholder, text: text)
-            .font(.system(size: 15))
+    private func formField(label: String, icon: String, placeholder: String, text: Binding<String>) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(label)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(AppTheme.primaryText)
+            
+            HStack(spacing: AppTheme.space12) {
+                Image(systemName: icon)
+                    .font(.system(size: 14))
+                    .foregroundColor(AppTheme.primaryBlue)
+                    .frame(width: 20)
+                
+                TextField(
+                    "",
+                    text: text,
+                    prompt: Text(placeholder).foregroundColor(AppTheme.placeholderText)
+                )
+                .font(.system(size: 15))
+                .foregroundColor(AppTheme.primaryText)
+                .tint(AppTheme.primaryBlue)
+            }
             .padding(AppTheme.space16)
             .background(AppTheme.surface)
             .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusInput, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: AppTheme.radiusInput, style: .continuous)
-                    .stroke(AppTheme.separator, lineWidth: 1)
+                    .stroke(AppTheme.inputBorder, lineWidth: 1.2)
             )
+        }
     }
     
     private var isValid: Bool {

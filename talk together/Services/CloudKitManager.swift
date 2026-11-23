@@ -153,7 +153,9 @@ public final class CloudKitManager: @unchecked Sendable {
         if let duration = post.audioDurationSeconds {
             record["audioDurationSeconds"] = duration as CKRecordValue
         }
-        record["likesCount"] = post.likesCount as CKRecordValue
+        record["likesCount"] = max(post.likesCount, post.likedUserIds.count) as CKRecordValue
+        let likedStrings = post.likedUserIds.map { $0.uuidString }
+        record["likedUserIds"] = likedStrings as CKRecordValue
         record["createdAtText"] = post.createdAtText as CKRecordValue
         record["createdAt"] = Date() as CKRecordValue
         
@@ -178,6 +180,19 @@ public final class CloudKitManager: @unchecked Sendable {
         let recordID = CKRecord.ID(recordName: id.uuidString)
         _ = try await publicDB.deleteRecord(withID: recordID)
         self.lastSyncDate = Date()
+    }
+    
+    public func updatePostLikes(id: UUID, likesCount: Int, likedUserIds: [UUID]) async throws {
+        let recordID = CKRecord.ID(recordName: id.uuidString)
+        do {
+            let record = try await publicDB.record(for: recordID)
+            record["likesCount"] = max(0, likesCount) as CKRecordValue
+            record["likedUserIds"] = likedUserIds.map { $0.uuidString } as CKRecordValue
+            _ = try await publicDB.save(record)
+            self.lastSyncDate = Date()
+        } catch {
+            // Ignored if record doesn't exist yet in CloudKit
+        }
     }
     
     // MARK: - Community User Profiles (CloudKit Public Database)
@@ -213,6 +228,12 @@ public final class CloudKitManager: @unchecked Sendable {
         record["createdAt"] = user.createdAt as CKRecordValue
         
         _ = try await publicDB.save(record)
+        self.lastSyncDate = Date()
+    }
+    
+    public func deleteUserProfile(id: UUID) async throws {
+        let recordID = CKRecord.ID(recordName: id.uuidString)
+        _ = try await publicDB.deleteRecord(withID: recordID)
         self.lastSyncDate = Date()
     }
     
@@ -292,6 +313,8 @@ public final class CloudKitManager: @unchecked Sendable {
         let caption = record["caption"] as? String
         let duration = record["audioDurationSeconds"] as? Int
         let likesCount = (record["likesCount"] as? Int) ?? 0
+        let likedStrings = (record["likedUserIds"] as? [String]) ?? []
+        let likedUserIds = likedStrings.compactMap { UUID(uuidString: $0) }
         let createdAtText = (record["createdAtText"] as? String) ?? "Recently"
         
         var audioURL: URL? = nil
@@ -314,7 +337,8 @@ public final class CloudKitManager: @unchecked Sendable {
             imageData: imageData,
             audioURL: audioURL,
             audioDurationSeconds: duration,
-            likesCount: likesCount,
+            likesCount: max(likesCount, likedUserIds.count),
+            likedUserIds: likedUserIds,
             createdAtText: createdAtText
         )
     }

@@ -47,6 +47,12 @@ public struct SavedPostsView: View {
                                 onDeleteTap: {
                                     debateManager.deletePost(id: post.id)
                                 },
+                                onLikeTap: {
+                                    debateManager.toggleLike(for: post.id, user: debateManager.currentUser)
+                                },
+                                onBookmarkTap: {
+                                    debateManager.toggleBookmark(for: post.id)
+                                },
                                 onReportSubmitted: { reason in
                                     debateManager.submitReport(post: post, reason: reason)
                                 }

@@ -35,9 +35,16 @@ public struct FeedPost: Identifiable, Codable, Sendable, Hashable {
     public var uploadProgress: Double? // nil = uploaded, 0.0...1.0 = WhatsApp-style uploading ring
     public var likesCount: Int
     public var isLiked: Bool
+    public var likedUserIds: [UUID]
     public var isBookmarked: Bool
     public var comments: [PostComment]
     public let createdAtText: String
+    
+    enum CodingKeys: String, CodingKey {
+        case id, author, topicTitle, stance, quoteText, caption, imageData
+        case audioURL, audioDurationSeconds, waveformSamples, uploadProgress
+        case likesCount, isLiked, likedUserIds, isBookmarked, comments, createdAtText
+    }
     
     public init(
         id: UUID = UUID(),
@@ -53,6 +60,7 @@ public struct FeedPost: Identifiable, Codable, Sendable, Hashable {
         uploadProgress: Double? = nil,
         likesCount: Int = 0,
         isLiked: Bool = false,
+        likedUserIds: [UUID] = [],
         isBookmarked: Bool = false,
         comments: [PostComment] = [],
         createdAtText: String = "10m"
@@ -70,9 +78,31 @@ public struct FeedPost: Identifiable, Codable, Sendable, Hashable {
         self.uploadProgress = uploadProgress
         self.likesCount = likesCount
         self.isLiked = isLiked
+        self.likedUserIds = likedUserIds
         self.isBookmarked = isBookmarked
         self.comments = comments
         self.createdAtText = createdAtText
+    }
+    
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        author = try container.decode(User.self, forKey: .author)
+        topicTitle = try container.decodeIfPresent(String.self, forKey: .topicTitle)
+        stance = try container.decodeIfPresent(DebateStance.self, forKey: .stance)
+        quoteText = try container.decodeIfPresent(String.self, forKey: .quoteText)
+        caption = try container.decodeIfPresent(String.self, forKey: .caption)
+        imageData = try container.decodeIfPresent(Data.self, forKey: .imageData)
+        audioURL = try container.decodeIfPresent(URL.self, forKey: .audioURL)
+        audioDurationSeconds = try container.decodeIfPresent(Int.self, forKey: .audioDurationSeconds)
+        waveformSamples = try container.decodeIfPresent([Float].self, forKey: .waveformSamples) ?? []
+        uploadProgress = try container.decodeIfPresent(Double.self, forKey: .uploadProgress)
+        likesCount = try container.decodeIfPresent(Int.self, forKey: .likesCount) ?? 0
+        isLiked = try container.decodeIfPresent(Bool.self, forKey: .isLiked) ?? false
+        likedUserIds = try container.decodeIfPresent([UUID].self, forKey: .likedUserIds) ?? []
+        isBookmarked = try container.decodeIfPresent(Bool.self, forKey: .isBookmarked) ?? false
+        comments = try container.decodeIfPresent([PostComment].self, forKey: .comments) ?? []
+        createdAtText = try container.decodeIfPresent(String.self, forKey: .createdAtText) ?? "10m"
     }
 }
 

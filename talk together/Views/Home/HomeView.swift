@@ -73,6 +73,12 @@ public struct HomeView: View {
                                 onDeleteTap: {
                                     postPendingDelete = post
                                 },
+                                onLikeTap: {
+                                    debateManager.toggleLike(for: post.id, user: debateManager.currentUser)
+                                },
+                                onBookmarkTap: {
+                                    debateManager.toggleBookmark(for: post.id)
+                                },
                                 onReportSubmitted: { reason in
                                     debateManager.submitReport(post: post, reason: reason)
                                 }

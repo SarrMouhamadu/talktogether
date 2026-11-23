@@ -10,7 +10,11 @@ public final class DebateManager: @unchecked Sendable {
     public var feedPosts: [FeedPost] = []
     public var allUsers: [User] = []
     public var reports: [ContentReport] = []
-    public var currentUser: User
+    public var currentUser: User {
+        didSet {
+            syncLikedStatusWithCurrentUser()
+        }
+    }
     public var myRole: ParticipantRole = .listener
     public var myStance: DebateStance = .neutral
     public var hasRaisedHand: Bool = false
@@ -81,6 +85,7 @@ public final class DebateManager: @unchecked Sendable {
             self.feedPosts = FeedPost.samplePosts
             self.persistPosts()
         }
+        self.syncLikedStatusWithCurrentUser()
         
         // 4. Load persisted safety reports
         if let data = UserDefaults.standard.data(forKey: reportsDefaultsKey),
@@ -91,6 +96,62 @@ public final class DebateManager: @unchecked Sendable {
         // 5. Asynchronous CloudKit Multi-Device Sync
         Task {
             await syncWithCloudKit()
+        }
+    }
+    
+    // MARK: - Likes & Bookmarks Persistence
+    public func toggleLike(for postID: UUID, user: User) {
+        guard let index = feedPosts.firstIndex(where: { $0.id == postID }) else { return }
+        var post = feedPosts[index]
+        
+        if post.likedUserIds.contains(user.id) {
+            post.likedUserIds.removeAll { $0 == user.id }
+            post.isLiked = false
+            post.likesCount = max(0, post.likesCount - 1)
+        } else {
+            post.likedUserIds.append(user.id)
+            post.isLiked = true
+            post.likesCount += 1
+        }
+        
+        feedPosts[index] = post
+        persistPosts()
+        
+        // Persist user-specific liked set in UserDefaults
+        let userLikesKey = "waxup_liked_post_ids_\(user.id.uuidString)"
+        var localLiked = Set(UserDefaults.standard.stringArray(forKey: userLikesKey) ?? [])
+        if post.isLiked {
+            localLiked.insert(postID.uuidString)
+        } else {
+            localLiked.remove(postID.uuidString)
+        }
+        UserDefaults.standard.set(Array(localLiked), forKey: userLikesKey)
+        
+        // Sync likes to CloudKit
+        let count = post.likesCount
+        let userIds = post.likedUserIds
+        Task {
+            try? await cloudKitManager.updatePostLikes(id: postID, likesCount: count, likedUserIds: userIds)
+        }
+    }
+    
+    public func toggleBookmark(for postID: UUID) {
+        guard let index = feedPosts.firstIndex(where: { $0.id == postID }) else { return }
+        feedPosts[index].isBookmarked.toggle()
+        persistPosts()
+    }
+    
+    public func syncLikedStatusWithCurrentUser() {
+        let userLikesKey = "waxup_liked_post_ids_\(currentUser.id.uuidString)"
+        let localLiked = Set(UserDefaults.standard.stringArray(forKey: userLikesKey) ?? [])
+        
+        for i in 0..<feedPosts.count {
+            let isUserLiked = feedPosts[i].likedUserIds.contains(currentUser.id) || localLiked.contains(feedPosts[i].id.uuidString)
+            feedPosts[i].isLiked = isUserLiked
+            if isUserLiked && !feedPosts[i].likedUserIds.contains(currentUser.id) {
+                feedPosts[i].likedUserIds.append(currentUser.id)
+            }
+            feedPosts[i].likesCount = max(feedPosts[i].likesCount, feedPosts[i].likedUserIds.count)
         }
     }
     
@@ -146,6 +207,7 @@ public final class DebateManager: @unchecked Sendable {
                         feedPosts.insert(remote, at: 0)
                     }
                 }
+                syncLikedStatusWithCurrentUser()
                 persistPosts()
             }
             
@@ -581,33 +643,52 @@ public final class DebateManager: @unchecked Sendable {
         return csv
     }
     
-    public func deleteUserAccount(id: UUID) {
-        // Remove all user's posts and audio files
-        let userPosts = feedPosts.filter { $0.author.id == id }
+    public func deleteUserAccount(id: UUID, username: String? = nil) {
+        // 1. Remove all user's posts and local audio files, and delete from CloudKit public database
+        let userPosts = feedPosts.filter { $0.author.id == id || (username != nil && $0.author.username == username) }
         for post in userPosts {
             if let audioURL = post.audioURL {
                 try? FileManager.default.removeItem(at: audioURL)
             }
+            Task {
+                try? await cloudKitManager.deleteFeedPost(id: post.id)
+            }
         }
-        feedPosts.removeAll { $0.author.id == id }
+        feedPosts.removeAll { $0.author.id == id || (username != nil && $0.author.username == username) }
         
-        // Remove user's comments from all posts
+        // 2. Remove user's comments from all remaining posts
         for i in 0..<feedPosts.count {
-            feedPosts[i].comments.removeAll { $0.author.id == id }
+            feedPosts[i].comments.removeAll { $0.author.id == id || (username != nil && $0.author.username == username) }
         }
         
-        // Remove user's queued/live topics and renumber FIFO
-        topicsQueue.removeAll { $0.creator.id == id }
+        // 3. Remove user's queued/live topics and delete from CloudKit public database
+        let userTopics = topicsQueue.filter { $0.creator.id == id || (username != nil && $0.creator.username == username) }
+        for topic in userTopics {
+            Task {
+                try? await cloudKitManager.deleteTopic(id: topic.id)
+            }
+        }
+        topicsQueue.removeAll { $0.creator.id == id || (username != nil && $0.creator.username == username) }
         renumberQueue()
+        
+        // 4. Persist updated topics and posts locally
         persistTopics()
         persistPosts()
         
-        // Remove user from platform
-        allUsers.removeAll { $0.id == id }
+        // 5. Remove user profile from CloudKit public database
+        Task {
+            try? await cloudKitManager.deleteUserProfile(id: id)
+        }
+        
+        // 6. Remove user from platform
+        allUsers.removeAll { $0.id == id || (username != nil && $0.username == username) }
         persistUsers()
         
-        // Resolve related reports
-        for i in 0..<reports.count where reports[i].reportedAuthor.id == id {
+        // 7. Remove local liked posts cache for this user
+        UserDefaults.standard.removeObject(forKey: "waxup_liked_post_ids_\(id.uuidString)")
+        
+        // 8. Resolve related reports
+        for i in 0..<reports.count where reports[i].reportedAuthor.id == id || (username != nil && reports[i].reportedAuthor.username == username) {
             reports[i].isResolved = true
         }
         persistReports()

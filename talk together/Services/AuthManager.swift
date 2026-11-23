@@ -142,6 +142,9 @@ public final class AuthManager: @unchecked Sendable {
     
     // MARK: - Delete Account (CRUD - Delete)
     public func deleteAccount() {
+        if let user = currentUser {
+            UserDefaults.standard.removeObject(forKey: "waxup_liked_post_ids_\(user.id.uuidString)")
+        }
         logout()
     }
     

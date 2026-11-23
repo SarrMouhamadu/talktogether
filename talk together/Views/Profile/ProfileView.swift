@@ -427,11 +427,14 @@ public struct ProfileView: View {
             }
             .alert("Delete Account?", isPresented: $isShowingDeleteAccountAlert) {
                 Button("Delete", role: .destructive) {
+                    if let user = authManager.currentUser {
+                        debateManager?.deleteUserAccount(id: user.id, username: user.username)
+                    }
                     authManager.deleteAccount()
                 }
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("Your profile and local session will be permanently removed.")
+                Text("Your account, community posts, audio recordings, debates, and personal data will be permanently and irreversibly deleted.")
             }
             .overlay(alignment: .bottom) {
                 if let toast = adminToastMessage {

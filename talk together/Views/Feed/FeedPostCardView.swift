@@ -6,6 +6,8 @@ public struct FeedPostCardView: View {
     public var onCommentTap: (() -> Void)?
     public var onEditTap: (() -> Void)?
     public var onDeleteTap: (() -> Void)?
+    public var onLikeTap: (() -> Void)?
+    public var onBookmarkTap: (() -> Void)?
     public var onReportSubmitted: ((ReportReason) -> Void)?
     
     @State private var voicePlayer = VoiceNotePlayer()
@@ -17,6 +19,8 @@ public struct FeedPostCardView: View {
         onCommentTap: (() -> Void)? = nil,
         onEditTap: (() -> Void)? = nil,
         onDeleteTap: (() -> Void)? = nil,
+        onLikeTap: (() -> Void)? = nil,
+        onBookmarkTap: (() -> Void)? = nil,
         onReportSubmitted: ((ReportReason) -> Void)? = nil
     ) {
         self._post = post
@@ -24,6 +28,8 @@ public struct FeedPostCardView: View {
         self.onCommentTap = onCommentTap
         self.onEditTap = onEditTap
         self.onDeleteTap = onDeleteTap
+        self.onLikeTap = onLikeTap
+        self.onBookmarkTap = onBookmarkTap
         self.onReportSubmitted = onReportSubmitted
     }
     
@@ -257,12 +263,20 @@ public struct FeedPostCardView: View {
     
     // MARK: - Actions
     private func toggleLike() {
-        post.isLiked.toggle()
-        post.likesCount += post.isLiked ? 1 : -1
+        if let onLikeTap {
+            onLikeTap()
+        } else {
+            post.isLiked.toggle()
+            post.likesCount += post.isLiked ? 1 : -1
+        }
     }
     
     private func toggleBookmark() {
-        post.isBookmarked.toggle()
+        if let onBookmarkTap {
+            onBookmarkTap()
+        } else {
+            post.isBookmarked.toggle()
+        }
     }
 }
 
